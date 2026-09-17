@@ -1,0 +1,6 @@
+interface:
+  display_name: "Web Story"
+  short_description: "面向短中长篇连载的中文网文创作、审稿与投稿准备工作台"
+  default_prompt: "Use $web-story to create an original Chinese web novel and keep its story state coherent."
+policy:
+  allow_implicit_invocation: true
