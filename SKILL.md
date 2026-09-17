@@ -1,6 +1,6 @@
 ---
 name: web-story
-description: Create, continue, revise, review, or prepare original Chinese web novels for submission. Use when the user wants a coherent short, medium, or serialized web-fiction project rather than one-off prose help.
+description: Create, deconstruct, continue, revise, review, or prepare original Chinese web novels for submission. Use for coherent short, medium, or serialized web-fiction projects, including craft-focused analysis of reference works that will inform original writing.
 ---
 
 # web-story
@@ -9,7 +9,7 @@ Create and maintain original Chinese web-fiction projects through a single natur
 
 ## Use this skill
 
-Use this skill for a new novel, outline, chapter, revision, review, continuation of an existing manuscript, or a submission-preparation request. Do not use it for poetry, screenplay-only work, translating a book, or imitating a living author's distinctive style.
+Use this skill for a new novel, outline, chapter, revision, review, continuation of an existing manuscript, a craft-focused book deconstruction, or a submission-preparation request. Do not use it for poetry, screenplay-only work, translating a book, general literary scholarship unrelated to web-fiction creation, or imitating a living author's distinctive style.
 
 Treat `/web-story` as an explicit user-facing entry point, but infer the same workflow from clear fiction requests. The user should not have to name internal modes or commands.
 
@@ -26,6 +26,7 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 - **Plan or redirect a book:** read [workflows](references/workflows.md). Update future intent, not accepted canon, unless the author explicitly accepts a retcon.
 - **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md) and [review rubric](references/review-rubric.md). Use a staging workspace; when the helper is available, let it commit the chapter. Do not write directly into `正文/` before review and settlement.
 - **Review or revise:** read [review rubric](references/review-rubric.md). For an existing chapter, explain material downstream impact before any structural change; preserve author-approved facts unless instructed otherwise.
+- **Deconstruct one or more books:** read [book deconstruction](references/book-deconstruction.md). Analyze only the requested scope, distinguish evidence from inference, and convert findings into abstract craft patterns rather than a disguised copy. Keep reference analysis outside canon and obtain author confirmation before applying it to an active book.
 - **Import and continue:** read [workflows](references/workflows.md). Imported analysis is proposed canon until the author confirms it.
 - **Submission package:** read [submission policy](references/submission-policy.md). Prepare materials and open questions; never guarantee eligibility, contract, review, or revenue.
 
@@ -37,6 +38,7 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 - When available, use the bundled helper for deterministic work: schema checks, word counts, state recovery, reconciliation, commits, and exports. Keep narrative judgment with the model and author; retain a transparent manual fallback for agents without Python.
 - Pause for author direction when a request changes the book's premise, ending posture, core motivation, accepted chapter text, or a major canon conflict.
 - Do not offer AI-detector evasion, misrepresent authorship, copy protected prose, or mimic a living author's voice. Support original work, transparent human revision, and current-platform verification instead.
+- Do not fetch unauthorized full texts or reconstruct a source book from an analysis. Prefer material supplied by the author, public-domain or licensed sources, and brief evidence descriptions over reproduced passages.
 
 ## Completion reports
 
