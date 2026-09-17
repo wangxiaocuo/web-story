@@ -5,7 +5,7 @@ description: Create, continue, revise, review, or prepare original Chinese web n
 
 # web-story
 
-Create and maintain original Chinese web-fiction projects through a single natural-language workflow. Keep the author in control of story-defining choices, persist accepted facts locally, and never claim a chapter or book is complete unless the corresponding files exist.
+Create and maintain original Chinese web-fiction projects through a single natural-language workflow. Keep the author in control of story-defining choices, persist accepted facts locally, and never claim a chapter or book is complete unless the corresponding files exist. This is a standard Agent Skill: do not assume a particular host application or ask the author to operate its internal tooling.
 
 ## Use this skill
 
@@ -15,15 +15,16 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 
 ## Find the project state
 
-1. If the user names a book or gives a folder, resolve that folder. Otherwise, inspect the working directory for exactly one `*.web-story/manifest.json` or `.web-story/manifest.json` before asking.
-2. For an existing book, run `scripts/storyctl.py status` and then `preflight` before a mutating chapter operation. If a prior run is unfinished or views disagree, run `reconcile` and report the recovery result before proceeding.
-3. Never load a whole long manuscript by default. Follow [context policy](references/context-policy.md).
+1. If the user names a book or gives a folder, resolve that folder. Otherwise, inspect the working directory for exactly one `.web-story/manifest.json` before asking.
+2. For an existing book, use `scripts/storyctl.py` automatically when Python 3 is available: run `status` and then `preflight` before a mutating chapter operation. If a prior run is unfinished or views disagree, run `reconcile` and report the recovery result before proceeding.
+3. If Python 3 is unavailable, keep the same file contract with ordinary agent file tools, perform the checks in the relevant reference manually, and clearly say that deterministic validation was unavailable. Never tell the author to run a command merely to use the skill.
+4. Never load a whole long manuscript by default. Follow [context policy](references/context-policy.md).
 
 ## Route the request
 
 - **New book / premise / platform fit:** read [workflows](references/workflows.md), then collect only the minimum creative brief before creating files.
 - **Plan or redirect a book:** read [workflows](references/workflows.md). Update future intent, not accepted canon, unless the author explicitly accepts a retcon.
-- **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md) and [review rubric](references/review-rubric.md). A chapter must pass through a staging workspace and be committed by `storyctl`; do not write directly into `正文/`.
+- **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md) and [review rubric](references/review-rubric.md). Use a staging workspace; when the helper is available, let it commit the chapter. Do not write directly into `正文/` before review and settlement.
 - **Review or revise:** read [review rubric](references/review-rubric.md). For an existing chapter, explain material downstream impact before any structural change; preserve author-approved facts unless instructed otherwise.
 - **Import and continue:** read [workflows](references/workflows.md). Imported analysis is proposed canon until the author confirms it.
 - **Submission package:** read [submission policy](references/submission-policy.md). Prepare materials and open questions; never guarantee eligibility, contract, review, or revenue.
@@ -33,7 +34,7 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 - Accepted prose and confirmed canon are authoritative. Summaries, indexes, statistics, and projections are derived and rebuildable.
 - Record facts that a draft establishes before accepting it. Do not silently resolve a contradiction: explain it and ask the author when it changes the story.
 - Separate reader-visible knowledge from author knowledge. A character can act only on information available in the scene.
-- Use scripts for deterministic work: schema checks, word counts, state recovery, reconciliation, commits, and exports. Keep narrative judgment with the model and author.
+- When available, use the bundled helper for deterministic work: schema checks, word counts, state recovery, reconciliation, commits, and exports. Keep narrative judgment with the model and author; retain a transparent manual fallback for agents without Python.
 - Pause for author direction when a request changes the book's premise, ending posture, core motivation, accepted chapter text, or a major canon conflict.
 - Do not offer AI-detector evasion, misrepresent authorship, copy protected prose, or mimic a living author's voice. Support original work, transparent human revision, and current-platform verification instead.
 

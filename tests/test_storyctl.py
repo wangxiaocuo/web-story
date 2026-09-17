@@ -72,6 +72,15 @@ class StoryCtlTests(unittest.TestCase):
             result = self.run_ctl(root, "reconcile", expected=3)
             self.assertEqual(result["discrepancies"][0]["type"], "missing-summary")
 
+    def test_reconcile_reports_interrupted_commit_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "book"
+            self.run_ctl(root, "init", "--title", "测试书")
+            pending = root / ".web-story" / "runs" / "chapter-0001.pending.json"
+            pending.write_text(json.dumps({"chapter": 1, "artifacts": ["正文/第001章.md"]}), encoding="utf-8")
+            result = self.run_ctl(root, "reconcile", expected=3)
+            self.assertEqual(result["discrepancies"][0]["type"], "pending-commit")
+
 
 if __name__ == "__main__":
     unittest.main()

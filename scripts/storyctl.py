@@ -225,6 +225,9 @@ def command_preflight(args: argparse.Namespace) -> int:
     staging = [path.name for path in (state_dir(root) / "staging").iterdir() if path.is_dir()]
     if staging:
         warnings.append("存在未结算章节工作区: " + ", ".join(staging))
+    pending = sorted(path.name for path in (state_dir(root) / "runs").glob("*.pending.json"))
+    if pending:
+        warnings.append("存在未完成提交日志: " + ", ".join(pending) + "；写入前应先 reconcile")
     if manifest.get("status") == "planning":
         warnings.append("书籍仍处于 planning；写正文前应确认创作简报与首批计划")
     return emit({"ok": not errors, "action": "preflight", "errors": errors, "warnings": warnings}, 0 if not errors else 2)
@@ -327,6 +330,14 @@ def command_reconcile(args: argparse.Namespace) -> int:
     file_numbers = [number for number, _ in files]
     accepted = manifest.get("accepted_chapters", [])
     discrepancies: list[dict[str, Any]] = []
+    for pending_path in sorted((state_dir(root) / "runs").glob("*.pending.json")):
+        pending = read_json(pending_path, "未完成提交日志")
+        discrepancies.append({
+            "type": "pending-commit",
+            "run": pending_path.name,
+            "chapter": pending.get("chapter"),
+            "artifacts": pending.get("artifacts", []),
+        })
     if accepted != file_numbers:
         discrepancies.append({"type": "chapter-set", "manifest": accepted, "files": file_numbers})
     summaries = state_dir(root) / "summaries"
@@ -345,6 +356,9 @@ def command_commit(args: argparse.Namespace) -> int:
     root = project_root(args)
     manifest = require_project(root)
     number = args.chapter
+    pending_runs = sorted((state_dir(root) / "runs").glob("*.pending.json"))
+    if pending_runs:
+        raise StoryError("存在未完成提交日志；先运行 reconcile 并处理差异后再提交")
     workspace, chapter = read_stage(root, number)
     errors = stage_errors(workspace, number)
     if errors:
@@ -382,8 +396,19 @@ def command_commit(args: argparse.Namespace) -> int:
     prose_path = root / "正文" / chapter_name(number, title)
     summary_path = state_dir(root) / "summaries" / f"chapter-{number:04d}.md"
     review_path = state_dir(root) / "reviews" / f"chapter-{number:04d}.json"
-    # All generated files are individually atomic. The run snapshot records enough
-    # information for reconcile to reveal an interrupted multi-file commit.
+    run_dir = state_dir(root) / "runs"
+    pending_path = run_dir / f"chapter-{number:04d}.pending.json"
+    planned_artifacts = [str(prose_path.relative_to(root)), str(summary_path.relative_to(root)), str(review_path.relative_to(root))]
+    # POSIX cannot atomically replace a set of independent files. Persist a journal
+    # first, then reconcile against it after interruption rather than claiming a
+    # database-style transaction.
+    write_json(pending_path, {
+        "chapter": number,
+        "phase": "committing",
+        "started_at": now(),
+        "workspace": str(workspace.relative_to(root)),
+        "artifacts": planned_artifacts,
+    })
     atomic_write(prose_path, draft.read_text(encoding="utf-8"))
     atomic_write(summary_path, summary.read_text(encoding="utf-8"))
     write_json(review_path, read_json(workspace / "review.json", "审稿结论"))
@@ -402,11 +427,12 @@ def command_commit(args: argparse.Namespace) -> int:
         "artifacts": [str(prose_path.relative_to(root)), str(summary_path.relative_to(root)), str(review_path.relative_to(root))],
         "inputs_hash": hash_files([draft, summary, workspace / "facts.json", workspace / "hooks.json", workspace / "review.json"]),
     }
-    write_json(state_dir(root) / "runs" / f"chapter-{number:04d}.json", run)
-    archive = state_dir(root) / "runs" / f"chapter-{number:04d}-workspace"
+    write_json(run_dir / f"chapter-{number:04d}.json", run)
+    archive = run_dir / f"chapter-{number:04d}-workspace"
     if archive.exists():
         shutil.rmtree(archive)
     shutil.move(str(workspace), str(archive))
+    pending_path.unlink()
     return emit({"ok": True, "action": "commit", "chapter": number, "prose": str(prose_path), "facts_added": len(facts), "hooks_updated": len(hook_changes)})
 
 
