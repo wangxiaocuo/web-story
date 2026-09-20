@@ -24,6 +24,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 CHAPTER_RE = re.compile(r"^第(\d{3,})章(?:-.+)?\.md$")
 REQUIRED_STAGE_FILES = ("draft.md", "summary.md", "facts.json", "hooks.json", "review.json")
+REVIEW_CHECKS = ("perception", "continuity", "mobile_readability", "prose_style")
 
 
 class StoryError(Exception):
@@ -145,6 +146,50 @@ def validate_hook(hook: Any, chapter: int) -> dict[str, Any]:
     return result
 
 
+def review_errors(review: Any) -> list[str]:
+    """Validate review evidence/decisions, not the truth of narrative judgments."""
+    if not isinstance(review, dict):
+        return ["review.json 必须是对象"]
+    errors: list[str] = []
+    if review.get("status") != "pass":
+        errors.append("审稿状态不是 pass")
+    checks = review.get("checks")
+    if not isinstance(checks, dict):
+        errors.append("审稿缺少 checks：须记录感知、连续性、手机阅读与文风检查依据")
+    else:
+        for name in REVIEW_CHECKS:
+            if not isinstance(checks.get(name), str) or not checks[name].strip():
+                errors.append(f"审稿 checks.{name} 缺少检查依据")
+    findings = review.get("findings")
+    if not isinstance(findings, list):
+        return errors + ["审稿 findings 必须是数组"]
+    for index, finding in enumerate(findings, 1):
+        label = f"审稿发现 {index}"
+        if not isinstance(finding, dict):
+            errors.append(f"{label} 必须是对象")
+            continue
+        severity = finding.get("severity")
+        if severity not in ("blocker", "major", "minor", "note"):
+            errors.append(f"{label} severity 不合法")
+            continue
+        resolution = finding.get("resolution", "open")
+        if resolution not in ("open", "fixed", "accepted_by_author"):
+            errors.append(f"{label} resolution 不合法")
+        if severity in ("blocker", "major"):
+            for field in ("location", "type", "evidence", "reader_impact", "suggestion"):
+                if not isinstance(finding.get(field), str) or not finding[field].strip():
+                    errors.append(f"{label} 缺少 {field}")
+        if resolution in ("fixed", "accepted_by_author"):
+            note = finding.get("resolution_note")
+            if not isinstance(note, str) or not note.strip():
+                errors.append(f"{label} 缺少修复复核或作者决定的 resolution_note")
+        if severity == "blocker" and resolution != "fixed":
+            errors.append(f"{label} blocker 未修复，不能提交")
+        if severity == "major" and resolution not in ("fixed", "accepted_by_author"):
+            errors.append(f"{label} major 未修复且未经作者接受，不能提交")
+    return errors
+
+
 def next_id(prefix: str, existing: dict[str, Any]) -> str:
     maximum = 0
     for key in existing:
@@ -190,7 +235,16 @@ def command_init(args: argparse.Namespace) -> int:
     atomic_write(root / "大纲/总纲.md", "# 总纲\n\n> 待规划。\n")
     atomic_write(root / "设定集/人物.md", "# 人物\n\n> 待设定。\n")
     atomic_write(root / "设定集/世界观.md", "# 世界观\n\n> 待设定。\n")
-    atomic_write(root / "设定集/文风契约.md", "# 文风契约\n\n> 待作者确认叙事视角、时态、语言密度与内容边界。\n")
+    atomic_write(root / "设定集/文风契约.md", (
+        "# 文风契约\n\n> 未指定项使用暂定默认，后续按作者反馈调整。\n\n"
+        "- 叙事视角、距离与时态：待结合创作简报明确。\n"
+        "- 语域与解释密度：默认具体、简洁，避免复述动作和对白已传达的信息。\n"
+        "- 段落：默认面向手机，短段为主，按动作与意思分段，保留必要的长短变化。\n"
+        "- 人物说话方式：依据目的、经历和关系区分，随主要人物设定补充。\n"
+        "- 内容边界：遵循创作简报与作者要求。\n"
+        "- 作者认可的本书片段：随实际反馈补充，不预先虚构认可。\n"
+        "- 作者不接受的表达习惯与修订取舍：随实际反馈补充。\n"
+    ))
     return emit({"ok": True, "action": "init", "project_root": str(root), "book_id": book_id})
 
 
@@ -246,12 +300,19 @@ def command_stage(args: argparse.Namespace) -> int:
     write_json(target / "chapter.json", {
         "chapter": number, "title": args.title, "phase": "intent-card-ready", "created_at": now(),
     })
-    atomic_write(target / "intent-card.md", "# 章节意图卡\n\n- POV：\n- 时间地点：\n- 章节问题：\n- 人物目标与阻力：\n- 必须推进：\n- 禁止改变：\n- 伏笔：\n- 结尾拉力：\n- 目标字数：\n")
+    atomic_write(target / "intent-card.md", (
+        "# 章节意图卡\n\n- POV：\n- 时间地点：\n- 章节问题：\n- 人物目标与阻力：\n"
+        "- 必须推进：\n- 禁止改变：\n- 伏笔：\n- 结尾拉力：\n- 目标字数：\n"
+        "- 相关实体的身份、属性、当前状态与来源：\n- 允许发生的状态变化及事件依据：\n"
+        "- 关键人物已知、误信、未知的信息与感知渠道：\n- 本章文风与段落取舍：\n"
+    ))
     atomic_write(target / "draft.md", "")
     atomic_write(target / "summary.md", "")
     write_json(target / "facts.json", [])
     write_json(target / "hooks.json", [])
-    write_json(target / "review.json", {"status": "pending", "findings": []})
+    write_json(target / "review.json", {
+        "status": "pending", "checks": {name: "" for name in REVIEW_CHECKS}, "findings": [],
+    })
     return emit({"ok": True, "action": "stage", "workspace": str(target), "chapter": number})
 
 
@@ -277,8 +338,7 @@ def stage_errors(workspace: Path, number: int) -> list[str]:
     if not (workspace / "summary.md").read_text(encoding="utf-8").strip():
         errors.append("summary.md 为空")
     review = read_json(workspace / "review.json", "审稿结论")
-    if review.get("status") != "pass":
-        errors.append("审稿状态不是 pass")
+    errors.extend(review_errors(review))
     try:
         facts = read_json(workspace / "facts.json", "事实增量")
         if not isinstance(facts, list):

@@ -24,8 +24,8 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 
 - **New book / premise / platform fit:** read [workflows](references/workflows.md), then collect only the minimum creative brief before creating files.
 - **Plan or redirect a book:** read [workflows](references/workflows.md). Update future intent, not accepted canon, unless the author explicitly accepts a retcon.
-- **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md) and [review rubric](references/review-rubric.md). Use a staging workspace; when the helper is available, let it commit the chapter. Do not write directly into `正文/` before review and settlement.
-- **Review or revise:** read [review rubric](references/review-rubric.md). For an existing chapter, explain material downstream impact before any structural change; preserve author-approved facts unless instructed otherwise.
+- **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md), which routes to prose and continuity guidance, and [review rubric](references/review-rubric.md). Use a staging workspace; when the helper is available, let it commit the chapter. Do not write directly into `正文/` before review and settlement.
+- **Review or revise:** read [review rubric](references/review-rubric.md) and its relevant prose/continuity guidance. For an existing chapter, explain material downstream impact before any structural change; preserve author-approved facts unless instructed otherwise.
 - **Deconstruct one or more books:** read [book deconstruction](references/book-deconstruction.md). Analyze only the requested scope, distinguish evidence from inference, and convert findings into abstract craft patterns rather than a disguised copy. Keep reference analysis outside canon and obtain author confirmation before applying it to an active book.
 - **Import and continue:** read [workflows](references/workflows.md). Imported analysis is proposed canon until the author confirms it.
 - **Submission package:** read [submission policy](references/submission-policy.md). Prepare materials and open questions; never guarantee eligibility, contract, review, or revenue.
@@ -34,7 +34,9 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 
 - Accepted prose and confirmed canon are authoritative. Summaries, indexes, statistics, and projections are derived and rebuildable.
 - Record facts that a draft establishes before accepting it. Do not silently resolve a contradiction: explain it and ask the author when it changes the story.
-- Separate reader-visible knowledge from author knowledge. A character can act only on information available in the scene.
+- Separate objective facts, narrator access, reader knowledge, and each character's knowledge. Trace consequential dialogue and reactions to an available information channel; text visible to the reader is not automatically perceptible to a character.
+- Default to mobile-friendly paragraphs and concrete, character-specific prose. Apply [prose quality](references/prose-quality.md) through drafting and revision, respecting the author's chosen style rather than enforcing phrase bans or uniform sentence lengths.
+- Before reusing an entity, retrieve its established identity, relevant attributes, and state with source evidence. Apply [continuity](references/continuity.md); a new fact ID or a plausible synonym does not establish a valid change.
 - When available, use the bundled helper for deterministic work: schema checks, word counts, state recovery, reconciliation, commits, and exports. Keep narrative judgment with the model and author; retain a transparent manual fallback for agents without Python.
 - Pause for author direction when a request changes the book's premise, ending posture, core motivation, accepted chapter text, or a major canon conflict.
 - Do not offer AI-detector evasion, misrepresent authorship, copy protected prose, or mimic a living author's voice. Support original work, transparent human revision, and current-platform verification instead.
