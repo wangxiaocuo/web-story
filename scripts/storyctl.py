@@ -100,6 +100,62 @@ def word_count(text: str) -> int:
     return cjk + latin
 
 
+# Half-width marks that must not sit next to Chinese text. Full-width punctuation
+# itself (。，“” etc.) also counts as Chinese context, so a straight quote after 。
+# is still flagged.
+HALFWIDTH_PUNCT = set(",.;:?!'\"()")
+CJK_CONTEXT = re.compile(r"[\u3400-\u9fff\u3000-\u303f\uff00-\uffef\u2014\u2018-\u201d\u2026]")
+
+
+def halfwidth_punct_findings(text: str) -> list[dict[str, Any]]:
+    """Find half-width punctuation directly adjacent to Chinese text.
+
+    Chinese prose defaults to full-width punctuation (，。：；？！“”（）……——).
+    Half-width marks inside numbers, units, URLs or English words have no
+    Chinese neighbour and are left alone. A run of dots counts as one finding.
+    """
+    findings: list[dict[str, Any]] = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        index = 0
+        while index < len(line):
+            char = line[index]
+            if char not in HALFWIDTH_PUNCT:
+                index += 1
+                continue
+            run_end = index
+            if char == ".":
+                while run_end + 1 < len(line) and line[run_end + 1] == ".":
+                    run_end += 1
+            previous = line[index - 1] if index > 0 else ""
+            following = line[run_end + 1] if run_end + 1 < len(line) else ""
+            if CJK_CONTEXT.match(previous) or CJK_CONTEXT.match(following):
+                snippet = line.strip()
+                if len(snippet) > 40:
+                    snippet = snippet[:40] + "…"
+                findings.append({"line": lineno, "char": char, "snippet": snippet})
+            index = run_end + 1
+    return findings
+
+
+def punctuation_errors(label: str, text: str) -> list[str]:
+    findings = halfwidth_punct_findings(text)
+    if not findings:
+        return []
+    examples: list[str] = []
+    for item in findings:
+        rendered = f"第{item['line']}行“{item['snippet']}”"
+        if rendered not in examples:
+            examples.append(rendered)
+        if len(examples) == 3:
+            break
+    summary = f"共 {len(findings)} 处" if len({item['line'] for item in findings}) <= 3 else f"前 3 例，共 {len(findings)} 处"
+    return [
+        f"{label} 中文正文存在与汉字相邻的半角标点（{summary}）：{'；'.join(examples)}；"
+        "默认改用全角标点（，。：；？！“”（）……——），数字、单位与英文内容中的半角不受影响；"
+        "作者明确接受半角风格并记入文风契约后，可用 --allow-halfwidth 提交"
+    ]
+
+
 def chapter_name(number: int, title: str) -> str:
     safe_title = re.sub(r"[\\/:*?\"<>|\n\r]", "-", title).strip(" .-") or "未命名"
     return f"第{number:03d}章-{safe_title}.md"
@@ -240,6 +296,7 @@ def command_init(args: argparse.Namespace) -> int:
         "- 叙事视角、距离与时态：待结合创作简报明确。\n"
         "- 语域与解释密度：默认具体、简洁，避免复述动作和对白已传达的信息。\n"
         "- 段落：默认面向手机，短段为主，按动作与意思分段，保留必要的长短变化。\n"
+        "- 标点：默认全角中文标点（，。：；？！“”（）……——）；数字、单位、英文与代码内部保留半角；作者明确接受的其他方案记录于此。\n"
         "- 人物说话方式：依据目的、经历和关系区分，随主要人物设定补充。\n"
         "- 内容边界：遵循创作简报与作者要求。\n"
         "- 作者认可的本书片段：随实际反馈补充，不预先虚构认可。\n"
@@ -327,17 +384,22 @@ def read_stage(root: Path, number: int) -> tuple[Path, dict[str, Any]]:
     return workspace, data
 
 
-def stage_errors(workspace: Path, number: int) -> list[str]:
+def stage_errors(workspace: Path, number: int, allow_halfwidth: bool = False) -> list[str]:
     errors: list[str] = []
     for name in REQUIRED_STAGE_FILES:
         if not (workspace / name).exists():
             errors.append(f"缺少工作区文件: {name}")
     if errors:
         return errors
-    if not (workspace / "draft.md").read_text(encoding="utf-8").strip():
+    draft_text = (workspace / "draft.md").read_text(encoding="utf-8")
+    if not draft_text.strip():
         errors.append("draft.md 为空")
-    if not (workspace / "summary.md").read_text(encoding="utf-8").strip():
+    summary_text = (workspace / "summary.md").read_text(encoding="utf-8")
+    if not summary_text.strip():
         errors.append("summary.md 为空")
+    if not allow_halfwidth:
+        errors.extend(punctuation_errors("draft.md", draft_text))
+        errors.extend(punctuation_errors("summary.md", summary_text))
     review = read_json(workspace / "review.json", "审稿结论")
     errors.extend(review_errors(review))
     try:
@@ -379,8 +441,15 @@ def command_validate(args: argparse.Namespace) -> int:
     for number, path in files:
         if not (state_dir(root) / "summaries" / f"chapter-{number:04d}.md").exists():
             errors.append(f"第 {number} 章缺少摘要")
-        if word_count(path.read_text(encoding="utf-8")) < 100:
+        text = path.read_text(encoding="utf-8")
+        if word_count(text) < 100:
             warnings.append(f"第 {number} 章正文不足 100 字")
+        punct = halfwidth_punct_findings(text)
+        if punct:
+            warnings.append(
+                f"第 {number} 章正文存在 {len(punct)} 处与汉字相邻的半角标点（如第 {punct[0]['line']} 行）；"
+                "修订时统一为全角标点"
+            )
     return emit({"ok": not errors, "action": "validate", "errors": errors, "warnings": warnings}, 0 if not errors else 2)
 
 
@@ -421,7 +490,7 @@ def command_commit(args: argparse.Namespace) -> int:
     if pending_runs:
         raise StoryError("存在未完成提交日志；先运行 reconcile 并处理差异后再提交")
     workspace, chapter = read_stage(root, number)
-    errors = stage_errors(workspace, number)
+    errors = stage_errors(workspace, number, allow_halfwidth=args.allow_halfwidth)
     if errors:
         return emit({"ok": False, "action": "commit", "errors": errors}, 2)
     accepted = manifest.get("accepted_chapters", [])
@@ -534,6 +603,8 @@ def parser() -> argparse.ArgumentParser:
     commit = commands.add_parser("commit", parents=[common])
     commit.add_argument("--chapter", type=int, required=True)
     commit.add_argument("--allow-retcon", action="store_true")
+    commit.add_argument("--allow-halfwidth", action="store_true",
+                        help="作者明确接受半角标点风格并已记入文风契约时使用")
     commit.set_defaults(handler=command_commit)
 
     build = commands.add_parser("build", parents=[common])

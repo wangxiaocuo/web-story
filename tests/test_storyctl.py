@@ -180,6 +180,58 @@ class StoryCtlTests(unittest.TestCase):
             self.assertFalse(result["ok"])
             self.assertFalse((root / "正文" / "第001章-未审.md").exists())
 
+    def test_commit_blocks_halfwidth_punctuation_adjacent_to_cjk(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "book"
+            self.run_ctl(root, "init", "--title", "测试书")
+            self.run_ctl(root, "stage", "--chapter", "1", "--title", "标点")
+            self.make_passing_stage(root)
+            workspace = root / ".web-story/staging/chapter-0001"
+            (workspace / "draft.md").write_text(
+                "他放下茶杯,低声道:\"走吧。\"屏幕上滚过Level 3.5的提示,又暗了下去...",
+                encoding="utf-8",
+            )
+            result = self.run_ctl(root, "commit", "--chapter", "1", expected=2)
+            self.assertFalse(result["ok"])
+            self.assertTrue(any("半角标点" in error for error in result["errors"]))
+            self.assertEqual(list((root / "正文").iterdir()), [])
+            (workspace / "draft.md").write_text(
+                "他放下茶杯，低声道：“走吧。”屏幕上滚过Level 3.5的提示，又暗了下去……",
+                encoding="utf-8",
+            )
+            self.assertTrue(self.run_ctl(root, "commit", "--chapter", "1")["ok"])
+
+    def test_commit_allows_halfwidth_only_through_explicit_author_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "book"
+            self.run_ctl(root, "init", "--title", "测试书")
+            self.run_ctl(root, "stage", "--chapter", "1", "--title", "半角")
+            self.make_passing_stage(root)
+            workspace = root / ".web-story/staging/chapter-0001"
+            (workspace / "draft.md").write_text("他点头,转身离开。", encoding="utf-8")
+            self.run_ctl(root, "commit", "--chapter", "1", "--allow-halfwidth", expected=0)
+            self.assertTrue((root / "正文" / "第001章-半角.md").exists())
+
+    def test_english_contexts_are_not_flagged_and_validate_warns_for_committed_prose(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "book"
+            self.run_ctl(root, "init", "--title", "测试书")
+            self.run_ctl(root, "stage", "--chapter", "1", "--title", "混排")
+            self.make_passing_stage(root)
+            workspace = root / ".web-story/staging/chapter-0001"
+            (workspace / "draft.md").write_text(
+                "He typed \"run\" at 12:30, scoring 3.5 out of 10. Don't stop! APP v2.0 works.\n\n"
+                "他看了看屏幕，笑了笑。",
+                encoding="utf-8",
+            )
+            self.assertTrue(self.run_ctl(root, "commit", "--chapter", "1")["ok"])
+            chapter_path = next((root / "正文").glob("第001章-*.md"))
+            chapter_path.write_text(chapter_path.read_text(encoding="utf-8") + "\n\n他说,\"明天见。\"",
+                                    encoding="utf-8")
+            result = self.run_ctl(root, "validate")
+            self.assertTrue(result["ok"])
+            self.assertTrue(any("半角标点" in warning for warning in result["warnings"]))
+
     def test_reconcile_finds_missing_summary(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "book"
