@@ -22,8 +22,8 @@ Treat `/web-story` as an explicit user-facing entry point, but infer the same wo
 
 ## Route the request
 
-- **New book / premise / platform fit:** read [workflows](references/workflows.md), then collect only the minimum creative brief before creating files.
-- **Plan or redirect a book:** read [workflows](references/workflows.md). Update future intent, not accepted canon, unless the author explicitly accepts a retcon.
+- **New book / premise / platform fit:** read [workflows](references/workflows.md) and, for serialized fiction, [serial story engine](references/serial-story-engine.md); then collect only the minimum creative brief before creating files.
+- **Plan or redirect a book:** read [workflows](references/workflows.md) and the [serial story engine](references/serial-story-engine.md) when planning a serial. Update future intent, not accepted canon, unless the author explicitly accepts a retcon.
 - **Draft or continue a chapter:** read [chapter pipeline](references/chapter-pipeline.md), which routes to prose and continuity guidance, and [review rubric](references/review-rubric.md). Use a staging workspace; when the helper is available, let it commit the chapter. Do not write directly into `正文/` before review and settlement.
 - **Review or revise:** read [review rubric](references/review-rubric.md) and its relevant prose/continuity guidance. For an existing chapter, explain material downstream impact before any structural change; preserve author-approved facts unless instructed otherwise.
 - **Deconstruct one or more books:** read [book deconstruction](references/book-deconstruction.md). Analyze only the requested scope, distinguish evidence from inference, and convert findings into abstract craft patterns rather than a disguised copy. Keep reference analysis outside canon and obtain author confirmation before applying it to an active book.
